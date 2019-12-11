@@ -17,6 +17,8 @@ repositories {
 
 dependencies {
 	implementation 'commons-cli:commons-cli:1.4'
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.10.1'
+	
 	compileOnly("org.projectlombok:lombok:${lombokVersion}")
     testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
     annotationProcessor("org.projectlombok:lombok:${lombokVersion}")

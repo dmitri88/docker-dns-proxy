@@ -12,12 +12,19 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
 import dima.docker.dto.ContainerInfoDTO;
+import dima.docker.service.DockerService;
+import lombok.Getter;
 
 public class Application {
+	
+	@Getter
+	private DockerService dockerService = new DockerService();
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws Exception {
 		Options options = new Options();
-		Option c = new Option("h", "hostsfile", true, "hosts file path");
+		
+		Option hostsfile = new Option("h", "hostsfile", true, "hosts file path");
+		options.addOption(hostsfile);
 		
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
@@ -33,14 +40,27 @@ public class Application {
             return;
         }		
         
-        String inputFilePath = cmd.getOptionValue("input");
+        String inputFilePath = cmd.getOptionValue("hostsfile");
         if(inputFilePath == null) {
         	inputFilePath = "/etc/hosts";
         }
 		
-		
-		List<ContainerInfoDTO> list = new InfoReader().readDocker();
-		new HostsUpdater().update(list);
+        Application application = new Application();
+        ApplicationContext context = ApplicationContext.getInstance();
+        
+        context.setHostsFilePath(inputFilePath);
+        context.setDockerVersion(application.getDockerService().getVersion());
+        
+        application.updateHosts();
+        application.getDockerService().scanDockerForChanges(()-> application.updateHosts());
 	}
-	
+
+	private void updateHosts()  {
+		try {
+			List<ContainerInfoDTO> list = dockerService.readDocker();
+			new HostsUpdater().update(list);
+		} catch (IOException  e) {
+			throw new RuntimeException(e);
+		}
+	}
 }
