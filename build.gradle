@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+}
+
+group = 'docker-dns'
+version = '0.0.1'
+description = 'Docker dns'
+sourceCompatibility = 13
+targetCompatibility = 13
+
+repositories {
+    mavenLocal()
+    maven {
+        url = 'http://repo.maven.apache.org/maven2'
+    }
+}
+
+dependencies {
+	implementation 'commons-cli:commons-cli:1.4'
+	compileOnly("org.projectlombok:lombok:${lombokVersion}")
+    testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+    testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+}
+
+
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes "Main-Class": "dima.docker.Application"
+    }
+ 
+   from {
+       configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
