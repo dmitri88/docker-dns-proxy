@@ -23,7 +23,7 @@ public class HostsUpdater {
 		List<String> filtered = currentLines.stream().filter(s -> !s.contains(DNS_PROXY_COMMENT)).collect(Collectors.toList());
 		
 		for(ContainerInfoDTO info:items) {
-			filtered.add(info.getIp()+"\t"+info.getName()+"\t"+DNS_PROXY_COMMENT);
+			filtered.add(info.getNetworkSettings().getIp()+"\t"+info.getName()+"\t"+DNS_PROXY_COMMENT);
 		}
 		return filtered;
 	}

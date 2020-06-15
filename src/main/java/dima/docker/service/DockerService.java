@@ -1,7 +1,6 @@
 package dima.docker.service;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,9 +12,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.TextNode;
 
+import dima.docker.ApplicationContext;
 import dima.docker.dto.ContainerInfoDTO;
+import dima.event.ScanEvent;
+import dima.event.ScannedEvent;
+import dima.utils.CommandLineTools;
 
 public class DockerService {
+	
 	@SuppressWarnings("unused")
 	public void scanDockerForChanges(Runnable callback) throws Exception {
 		Runtime rt = Runtime.getRuntime();
@@ -25,12 +29,10 @@ public class DockerService {
 		BufferedReader stdInput = new BufferedReader(new 
 		     InputStreamReader(proc.getInputStream()));
 
-//		BufferedReader stdError = new BufferedReader(new 
-//		     InputStreamReader(proc.getErrorStream()));
-
 		// Read the output from the command
 		String s = null;
 		while ((s = stdInput.readLine()) != null) {
+			ApplicationContext.fireEvent(new ScanEvent());
 			callback.run();
 		}
 	} 
@@ -38,7 +40,7 @@ public class DockerService {
 	
 	public List<ContainerInfoDTO> readDocker() throws JsonMappingException, JsonProcessingException {
 		// Run a shell command
-		String stdoutResults = executeCommand("docker", "ps");
+		String stdoutResults = CommandLineTools.executeCommand("docker", "ps");
 		String[] lines = stdoutResults.split("\n");
 		if(lines.length<1 || !lines[0].contains("NAMES")) {
 			throw new IllegalStateException("docker not found");
@@ -51,6 +53,8 @@ public class DockerService {
 			}
 			
 		}
+		
+		ApplicationContext.fireEvent(new ScannedEvent(results));
 		return results;
 	}
 
@@ -64,8 +68,9 @@ public class DockerService {
 
 
 	private ContainerInfoDTO inspect(String contName) throws JsonMappingException, JsonProcessingException {
-		String content = executeCommand("docker", "inspect",contName);
+		String content = CommandLineTools.executeCommand("docker", "inspect",contName);
 		ObjectMapper mapper = new ObjectMapper();
+		//System.out.println(content);
 		List<JsonNode> objects = mapper.readValue(content, new TypeReference<List<JsonNode>>() {
 		});
 		ContainerInfoDTO result = new ContainerInfoDTO();
@@ -73,46 +78,17 @@ public class DockerService {
 		
 		JsonNode networksNode = objects.get(0).get("NetworkSettings").get("Networks");
 		TextNode ipNode = (TextNode)networksNode.get(networksNode.fieldNames().next()).get("IPAddress");
-		result.setIp(ipNode.asText());
+		result.getNetworkSettings().setIp(ipNode.asText());
+		
+		TextNode dirNode = ((TextNode)objects.get(0).get("GraphDriver").get("Data").get("MergedDir"));
+		result.getGraphDriver().setMerged(dirNode.asText());
+		
 		return result;
 	}
 
 
-	private String executeCommand(String... params) {
-		ProcessBuilder processBuilder = new ProcessBuilder();
-		processBuilder.command(params);
-
-		try {
-
-			Process process = processBuilder.start();
-
-			StringBuilder output = new StringBuilder();
-
-			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-			String line;
-			while ((line = reader.readLine()) != null) {
-				output.append(line + "\n");
-			}
-
-			int exitVal = process.waitFor();
-			if (exitVal == 0) {
-				return output.toString();
-			} else {
-				return null;
-			}
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-
 	public String getVersion() {
-		String content = executeCommand("docker", "-v");
+		String content = CommandLineTools.executeCommand("docker", "-v");
 		return content.replace("Docker version ", "").split(",")[0];
 	}
 	
